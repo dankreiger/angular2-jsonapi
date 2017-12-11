@@ -21,7 +21,8 @@ export class JsonApiModel {
 
   syncRelationships(data: any, included: any, level: number): void {
     if (data) {
-      this.parseHasMany(data, included, level);
+      this.parseHasOne(data, included, level);      
+      this.parseHasMany(data, included, level);      
       this.parseBelongsTo(data, included, level);
     }
   }
@@ -71,15 +72,44 @@ export class JsonApiModel {
     return Reflect.getMetadata('JsonApiModelConfig', this.constructor);
   }
 
+  private parseHasOne(data: any, included: any, level: number): void {
+    const hasOne: any = Reflect.getMetadata('HasOne', this);
+    
+    if (hasOne) {            
+      for (const metadata of hasOne) {
+        const relationship: any = data.relationships ? data.relationships[metadata.relationship] : null;        
+        
+        if (relationship && relationship.data && !Array.isArray(relationship.data)) {
+          let allModels: JsonApiModel[] = [];
+          const modelTypesFetched: any = [];
+
+          const typeName: string = relationship.data.type;
+
+          if (!includes(modelTypesFetched, typeName)) {
+            modelTypesFetched.push(typeName);
+            // tslint:disable-next-line:max-line-length
+            const modelType: ModelType<this> = Reflect.getMetadata('JsonApiDatastoreConfig', this._datastore.constructor).models[typeName];
+
+            if (modelType) {
+              // tslint:disable-next-line:max-line-length                                
+              this[metadata.propertyName] = this.getHasOneRelationship(modelType, relationship.data, included, typeName, level);
+            } else {
+              throw { message: 'parseHasOne - Model type for relationship ' + typeName + ' not found.' };
+            }
+          }          
+        }
+      }
+    }
+  }
 
   private parseHasMany(data: any, included: any, level: number): void {
     const hasMany: any = Reflect.getMetadata('HasMany', this);
-
-    if (hasMany) {
+    
+    if (hasMany) {            
       for (const metadata of hasMany) {
-        const relationship: any = data.relationships ? data.relationships[metadata.relationship] : null;
-
-        if (relationship && relationship.data && relationship.data.length > 0) {
+        const relationship: any = data.relationships ? data.relationships[metadata.relationship] : null;        
+        
+        if (relationship && relationship.data && relationship.data.length > 0) {          
           let allModels: JsonApiModel[] = [];
           const modelTypesFetched: any = [];
 
@@ -98,6 +128,7 @@ export class JsonApiModel {
                   allModels = allModels.concat(relationshipModels);
                 }
               } else {
+                console.error("models: ", Reflect.getMetadata('JsonApiDatastoreConfig', this._datastore.constructor).models);
                 throw { message: 'parseHasMany - Model type for relationship ' + typeName + ' not found.' };
               }
             }
@@ -155,7 +186,6 @@ export class JsonApiModel {
 
     data.forEach((item: any) => {
       const relationshipData: any = find(included, { id: item.id, type: typeName });
-
       if (relationshipData) {
         const newObject: T = this.createOrPeek(modelType, relationshipData);
 
@@ -167,6 +197,25 @@ export class JsonApiModel {
     });
     return relationshipList;
   }
+
+  private getHasOneRelationship<T extends JsonApiModel>(
+    modelType: ModelType<T>,
+    data: any,
+    included: any,
+    typeName: string,
+    level: number
+  ): T | null {
+      const relationshipData: any = find(included, { id: data.id, type: typeName });
+      if (relationshipData) {
+        const newObject: T = this.createOrPeek(modelType, relationshipData);
+
+        if (level <= 1) {
+          newObject.syncRelationships(relationshipData, included, level + 1);
+        }
+        return newObject;
+      }
+      return null;
+    }
 
 
   private getBelongsToRelationship<T extends JsonApiModel>(
