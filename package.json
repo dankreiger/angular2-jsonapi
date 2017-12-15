@@ -1,6 +1,6 @@
 {
   "name": "angular-jsonapi-client",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "A fork of angular2-jsonapi - A lightweight Angular 2 adapter for JSON API",
   "scripts": {
     "build": "rimraf dist src/compiled && tslint src/**/*.ts && tsc",
@@ -80,7 +80,7 @@
     "tslint": "^5.7.0",
     "tslint-config-airbnb": "^5.3.0",
     "typescript": "2.5.3",
-    "webpack": "2.3.3",
+    "webpack": "^3.10.0",
     "zone.js": "^0.8.16"
   },
   "engines": {
