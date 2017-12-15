@@ -1,23 +1,23 @@
 {
-  "name": "angular2-jsonapi",
+  "name": "angular-jsonapi-client",
   "version": "4.0.0",
-  "description": "A lightweight Angular 2 adapter for JSON API",
+  "description": "A fork of angular2-jsonapi - A lightweight Angular 2 adapter for JSON API",
   "scripts": {
-    "build": "rimraf dist src/compiled && tslint src/**/*.ts && ngc",
+    "build": "rimraf dist src/compiled && tslint src/**/*.ts && tsc",
     "lint": "tslint src/**/*.ts",
     "pretest": "npm run build",
     "test": "karma start",
-    "prepublish": "ngc",
-    "ngc": "ngc",
+    "prepublish": "tsc",
+    "ngc": "tsc",
     "servetest": "npm run pretest & karma start karma.dev.conf.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ghidoz/angular2-jsonapi"
+    "url": "https://github.com/compuccino/angular2-jsonapi.git"
   },
   "author": {
-    "name": "Daniele Ghidoli",
-    "url": "http://danieleghidoli.it"
+    "name": "Michael Markowski",
+    "url": "http://www.compuccino.com"
   },
   "keywords": [
     "angular",
@@ -28,7 +28,7 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ghidoz/angular2-jsonapi/issues"
+    "url": "https://github.com/compuccino/angular2-jsonapi/issues"
   },
   "main": "./dist/index.js",
   "typings": "./dist/index.d.ts",
@@ -43,15 +43,15 @@
     "rxjs": "^5.2.0"
   },
   "devDependencies": {
-    "@angular/animations": "^4.4.3",
-    "@angular/common": "^4.4.3",
-    "@angular/compiler": "^4.4.3",
-    "@angular/compiler-cli": "^4.4.3",
-    "@angular/core": "^4.4.3",
-    "@angular/http": "^4.4.3",
-    "@angular/platform-browser": "^4.4.3",
-    "@angular/platform-browser-dynamic": "^4.4.3",
-    "@angular/platform-server": "^4.4.3",
+    "@angular/animations": "^5.0.0",
+    "@angular/common": "^5.0.0",
+    "@angular/compiler": "^5.0.0",
+    "@angular/core": "^5.0.0",
+    "@angular/http": "^5.0.0",
+    "@angular/platform-browser": "^5.0.0",
+    "@angular/platform-browser-dynamic": "^5.0.0",
+    "@angular/compiler-cli": "^5.0.0",
+    "@angular/platform-server": "^5.0.0",
     "@types/date-fns": "^2.6.0",
     "@types/jasmine": "2.5.43",
     "@types/lodash-es": "^4.14.6",
