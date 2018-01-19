@@ -239,12 +239,23 @@ export class JsonApiDatastore {
                                                      withMeta = false): T[] | JsonApiQueryData<T> {
         const body: any = res.json();
         const models: T[] = [];
+        var config = this.datastoreConfig;
+        const modelTypes : any = config.models;
 
         body.data.forEach((data: any) => {
             const model: T = this.deserializeModel(modelType, data);
             this.addToStore(model);
 
             if (body.included) {
+                body.included.forEach((item:any) => {                
+                  var typeName = item.type;
+                  if (config && typeName) {            
+                    var includeModelType: ModelType<JsonApiModel> = modelTypes[typeName];
+                    if (includeModelType) {
+                        item.attributes = this.transformSerializedNamesToPropertyNames(includeModelType, item.attributes);
+                    }                      
+                  }         
+                });      
                 model.syncRelationships(data, body.included, 0);
                 this.addToStore(model);
             }
