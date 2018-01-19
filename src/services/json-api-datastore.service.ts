@@ -201,7 +201,7 @@ export class JsonApiDatastore {
 
                     const relationshipData = data[key]
                         .filter((model: JsonApiModel) => model.id)
-                        .pipe(map((model: JsonApiModel) => this.buildSingleRelationshipData(model)));
+                        .map((model: JsonApiModel) => this.buildSingleRelationshipData(model));
 
                     relationships[key] = {
                         data: relationshipData
