@@ -239,24 +239,14 @@ export class JsonApiDatastore {
                                                      withMeta = false): T[] | JsonApiQueryData<T> {
         const body: any = res.json();
         const models: T[] = [];
-        var config = this.datastoreConfig;
-        const modelTypes : any = config.models;
-
+        
         body.data.forEach((data: any) => {
             const model: T = this.deserializeModel(modelType, data);
             this.addToStore(model);
 
             if (body.included) {
-                body.included.forEach((item:any) => {                
-                  var typeName = item.type;
-                  if (config && typeName) {            
-                    var includeModelType: ModelType<JsonApiModel> = modelTypes[typeName];
-                    if (includeModelType) {
-                        item.attributes = this.transformSerializedNamesToPropertyNames(includeModelType, item.attributes);
-                    }                      
-                  }         
-                });      
-                model.syncRelationships(data, body.included, 0);
+              this.transformSerializedNamesInBodyIncludes(body.included);
+              model.syncRelationships(data, body.included, 0);
                 this.addToStore(model);
             }
 
@@ -268,6 +258,19 @@ export class JsonApiDatastore {
         } else {
             return models;
         }
+    }
+
+    private transformSerializedNamesInBodyIncludes(included: any[]) {
+      included.forEach((item:any) => {                
+        var typeName = item.type;
+        if (this.datastoreConfig && typeName) {            
+          const modelTypes : any = this.datastoreConfig.models;
+          var includeModelType: ModelType<JsonApiModel> = modelTypes[typeName];
+          if (includeModelType) {
+              item.attributes = this.transformSerializedNamesToPropertyNames(includeModelType, item.attributes);
+          }                      
+        }         
+      });      
     }
 
     private deserializeModel<T extends JsonApiModel>(modelType: ModelType<T>, data: any) {
@@ -292,6 +295,7 @@ export class JsonApiDatastore {
 
         this.addToStore(model);
         if (body.included) {
+            this.transformSerializedNamesInBodyIncludes(body.included);
             model.syncRelationships(body.data, body.included, 0);
             this.addToStore(model);
         }
