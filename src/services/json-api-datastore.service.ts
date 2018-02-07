@@ -110,7 +110,7 @@ export class JsonApiDatastore {
         let httpCall: Observable<Response>;
         const body: any = {
             data: {
-                relationships,
+                relationships: this.transformRelationshipPropertyNamesToSerializedNames(model),
                 type: typeName,
                 id: model.id,
                 attributes: this.getDirtyAttributes(attributesMetadata)
@@ -421,14 +421,45 @@ export class JsonApiDatastore {
         const properties: any = {};
 
         Object.keys(serializedNameToPropertyName).forEach((serializedName) => {
-            if (attributes[serializedName]!= null && attributes[serializedName]!= undefined) {
-                properties[serializedNameToPropertyName[serializedName]] = attributes[serializedName];
-            }
+          var targetPropertyName = serializedNameToPropertyName[serializedName];
+          if (attributes[serializedName] != null && 
+              attributes[serializedName] != undefined) 
+          {
+              properties[targetPropertyName] = attributes[serializedName];                
+          } else if (attributes[targetPropertyName] != null && 
+                     attributes[targetPropertyName] != undefined)
+          {                
+              // has already been serialized
+              properties[targetPropertyName] = attributes[targetPropertyName];
+          }
         });
 
         return properties;
     }
 
+    private transformRelationshipPropertyNamesToSerializedNames<T extends JsonApiModel>(model: T) {
+        const relationships: any = this.getRelationships(model);
+
+        var annotations = [];
+        var relationshipNames = {} as any;
+        var transformedRelationships = {} as any;
+        annotations = Reflect.getMetadata('HasMany', model) || [];
+        annotations = annotations.concat(Reflect.getMetadata('HasOne', model) || []);
+        annotations = annotations.concat(Reflect.getMetadata('BelongsTo', model) || []);
+
+        annotations.forEach((element : any) => {            
+            relationshipNames[element['propertyName']] = element['relationship']
+        });
+        let name = null;
+        if (relationships != undefined && relationships != null) {
+            Object.keys(relationships).forEach(key => {
+                if (name = relationshipNames[key]) {
+                    transformedRelationships[name] = relationships[key];
+                }            
+            });    
+        }
+        return transformedRelationships;        
+    }
     private getModelPropertyNames(model: JsonApiModel) {
         return Reflect.getMetadata('AttributeMapping', model);
     }
