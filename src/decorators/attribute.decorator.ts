@@ -58,8 +58,10 @@ export function Attribute(options: AttributeDecoratorOptions = {}): PropertyDeco
         instance[AttributeMetadata] = {};
       }
 
-      const propertyHasDirtyAttributes = typeof oldValue === 'undefined' && !isNew ? false : hasDirtyAttributes;
-
+      let propertyHasDirtyAttributes = typeof oldValue === 'undefined' && !isNew ? false : hasDirtyAttributes;
+      if (!isNew) {
+        propertyHasDirtyAttributes = oldValue != newValue;
+      }
       instance[AttributeMetadata][propertyName] = {
         newValue,
         oldValue,
