@@ -98,8 +98,8 @@ describe('JsonApiModel', () => {
         author.syncRelationships(DATA, getIncludedBooks(BOOK_NUMBER), 0);
         author.books.forEach((book: Book, index: number) => {
           expect(book.author).toBeDefined();
-          expect(book.author).toEqual(author);
-          expect(book.author.books[index]).toEqual(author.books[index]);
+          expect(book.author).toEqual(author);          
+          expect(book.author!.books[index]).toEqual(author.books[index]);
         });
 
       });

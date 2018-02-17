@@ -459,5 +459,23 @@ describe('JsonApiDatastore', () => {
       author.date_of_birth = parse('1965-07-31');
       author.save().subscribe();
     });
+    it('should remove the relationship', () => {
+      backend.connections.subscribe((c: MockConnection) => {
+        const obj = c.request.json().data;
+        expect(obj.relationships.author.data).toBeNull();
+      });
+      
+      const book = datastore.createRecord(Book, {
+        title: BOOK_TITLE
+      });
+      
+      book.author = new Author(datastore, {
+        id: AUTHOR_ID
+      });
+      
+      book.author = null;      
+      book.save().subscribe();
+      
+    });
   });
 });

@@ -21,7 +21,7 @@ import { ModelConfig } from '../interfaces/model-config.interface';
 import { AttributeMetadata } from '../constants/symbols';
 import { map } from 'rxjs/operators';
 
-export type ModelType<T extends JsonApiModel> = { new(datastore: JsonApiDatastore, data: any): T; };
+export type ModelType<T extends JsonApiModel> = { new(datastore: JsonApiDatastore, data: any): T; [key: string]: any };
 
 @Injectable()
 export class JsonApiDatastore {
@@ -31,6 +31,7 @@ export class JsonApiDatastore {
     // tslint:disable:max-line-length
     private getDirtyAttributes: Function = this.datastoreConfig.overrides && this.datastoreConfig.overrides.getDirtyAttributes ? this.datastoreConfig.overrides.getDirtyAttributes : this._getDirtyAttributes;
     private toQueryString: Function = this.datastoreConfig.overrides && this.datastoreConfig.overrides.toQueryString ? this.datastoreConfig.overrides.toQueryString : this._toQueryString;
+
     // tslint:enable:max-line-length
 
     protected config: DatastoreConfig;
@@ -183,8 +184,9 @@ export class JsonApiDatastore {
         return queryParams ? `${url}?${queryParams}` : url;
     }
 
-    private getRelationships(data: any): any {
+    private getRelationships<T extends JsonApiModel>(model: T): any {
         let relationships: any;
+        const data = <any>model;
 
         for (const key in data) {
             if (data.hasOwnProperty(key)) {
@@ -210,7 +212,22 @@ export class JsonApiDatastore {
             }
         }
 
+        this.relationsToBeDeleted(model).forEach((toDelete) => {
+            relationships = relationships || {};
+            relationships[toDelete] = { data: null };
+        });        
+
         return relationships;
+    }
+
+    private relationsToBeDeleted<T extends JsonApiModel>(model: T | {[key: string]: any}) {
+        const belongsToMetadata: [{propertyName: string, relationship: string}] = Reflect.getMetadata('BelongsTo', model);
+        if (belongsToMetadata == null) {
+            return [];
+        }
+        return belongsToMetadata.filter((entity) => model.hasOwnProperty(entity.propertyName))
+            .filter((entity) => model[entity.propertyName] === null)
+            .map((entity) => entity.propertyName);        
     }
 
     private isValidToManyRelation(objects: Array<any>): boolean {
@@ -222,16 +239,16 @@ export class JsonApiDatastore {
 
     private buildSingleRelationshipData(model: JsonApiModel): any {
         const relationshipType: string = model.modelConfig.type;
-        const relationShipData: { type: string, id?: string, attributes?: any } = {type: relationshipType};
+        const relationshipData: { type: string, id?: string, attributes?: any } = {type: relationshipType};
 
         if (model.id) {
-            relationShipData.id = model.id;
+            relationshipData.id = model.id;
         } else {
             const attributesMetadata: any = Reflect.getMetadata('Attribute', model);
-            relationShipData.attributes = this.getDirtyAttributes(attributesMetadata);
+            relationshipData.attributes = this.getDirtyAttributes(attributesMetadata);
         }
 
-        return relationShipData;
+        return relationshipData;
     }
 
     private extractQueryData<T extends JsonApiModel>(res: any,
