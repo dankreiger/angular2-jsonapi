@@ -126,10 +126,10 @@ export class JsonApiDatastore {
 
         return httpCall
             .pipe(map((res) => res.status === 201 ? this.extractRecordData(res, modelType, model) : model))
-            .catch((error) => {
-                console.error(error);
-                return Observable.of(model);
-            })
+            // .catch((error) => {
+            //     console.error(error);
+            //     return Observable.of(model);
+            // })
             .pipe(
                 map((res) => this.resetMetadataAttributes(res, attributesMetadata, modelType)),
                 map((res) => this.updateRelationships(res, relationships))
@@ -198,16 +198,23 @@ export class JsonApiDatastore {
                             data: this.buildSingleRelationshipData(data[key])
                         };
                     }
-                } else if (data[key] instanceof Array && data[key].length > 0 && this.isValidToManyRelation(data[key])) {
-                    relationships = relationships || {};
+                } else if (data[key] instanceof Array) {
+                    if (data[key].length > 0 && this.isValidToManyRelation(data[key])) {
+                        relationships = relationships || {};
 
-                    const relationshipData = data[key]
-                        .filter((model: JsonApiModel) => model.id)
-                        .map((model: JsonApiModel) => this.buildSingleRelationshipData(model));
-
-                    relationships[key] = {
-                        data: relationshipData
-                    };
+                        const relationshipData = data[key]
+                            .filter((model: JsonApiModel) => model.id)
+                            .map((model: JsonApiModel) => this.buildSingleRelationshipData(model));
+    
+                        relationships[key] = {
+                            data: relationshipData
+                        };    
+                    }
+                    if (data[key].length == 0) {
+                        relationships[key] = {
+                            data: []
+                        }; 
+                    }
                 }
             }
         }
@@ -412,7 +419,7 @@ export class JsonApiDatastore {
         for (const relationship in relationships) {
             if (relationships.hasOwnProperty(relationship) && model.hasOwnProperty(relationship)) {
                 const relationshipModel: JsonApiModel = model[relationship];
-                const hasMany: any[] = Reflect.getMetadata('HasMany', relationshipModel);
+                const hasMany: any[] = relationshipModel ? Reflect.getMetadata('HasMany', relationshipModel) : false;
                 const propertyHasMany: any = find(hasMany, (property) => {
                     return modelsTypes[property.relationship] === model.constructor;
                 });

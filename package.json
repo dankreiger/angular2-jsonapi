@@ -1,6 +1,6 @@
 {
   "name": "angular-jsonapi-client",
-  "version": "5.1.1",
+  "version": "5.1.4",
   "description": "A fork of angular2-jsonapi - A lightweight Angular 2 adapter for JSON API",
   "scripts": {
     "build": "rimraf dist src/compiled && tslint src/**/*.ts && tsc",
