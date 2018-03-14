@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
 import {
-    Headers,
-    Http,
-    RequestOptions,
-    Response
-} from '@angular/http';
+    HttpClient,
+    HttpErrorResponse,
+    HttpHeaders,
+    HttpResponse
+} from '@angular/common/http';
 import find from 'lodash-es/find';
 import { Observable } from 'rxjs/Observable';
 import { ErrorObservable } from 'rxjs/observable/ErrorObservable';
@@ -36,7 +36,7 @@ export class JsonApiDatastore {
 
     protected config: DatastoreConfig;
 
-    constructor(private http: Http) {
+    constructor(private http: HttpClient) {
     }
 
     /** @deprecated - use findAll method to take all models **/
@@ -44,9 +44,9 @@ export class JsonApiDatastore {
                                   params?: any,
                                   headers?: Headers,
                                   customUrl?: string): Observable<T[]> {
-        const options: RequestOptions = this.getOptions(headers);
+        const requestHeaders: HttpHeaders = this.buildHeaders(headers);
         const url: string = this.buildUrl(modelType, params, undefined, customUrl);
-        return this.http.get(url, options)
+        return this.http.get(url, {headers: requestHeaders})
             .pipe(map((res: any) => this.extractQueryData(res, modelType)))
             .catch((res: any) => this.handleError(res));
     }
@@ -55,10 +55,10 @@ export class JsonApiDatastore {
                                     params?: any,
                                     headers?: Headers,
                                     customUrl?: string): Observable<JsonApiQueryData<T>> {
-        const options: RequestOptions = this.getOptions(headers);
+        const requestHeaders: HttpHeaders = this.buildHeaders(headers);
         const url: string = this.buildUrl(modelType, params, undefined, customUrl);
 
-        return this.http.get(url, options)
+        return this.http.get(url, {headers: requestHeaders})
             .pipe(map((res: any) => this.extractQueryData(res, modelType, true)))
             .catch((res: any) => this.handleError(res));
     }
@@ -68,10 +68,10 @@ export class JsonApiDatastore {
                                        params?: any,
                                        headers?: Headers,
                                        customUrl?: string): Observable<T> {
-        const options: RequestOptions = this.getOptions(headers);
+        const requestHeaders: HttpHeaders = this.buildHeaders(headers);
         const url: string = this.buildUrl(modelType, params, id, customUrl);
 
-        return this.http.get(url, options)
+        return this.http.get(url, {headers: requestHeaders, observe: 'response'})
             .pipe(map((res) => this.extractRecordData(res, modelType)))
             .catch((res: any) => this.handleError(res));
     }
@@ -104,11 +104,11 @@ export class JsonApiDatastore {
         const modelType = <ModelType<T>>model.constructor;
         const modelConfig: ModelConfig = model.modelConfig;
         const typeName: string = modelConfig.type;
-        const options: RequestOptions = this.getOptions(headers);
+        const requestHeaders: HttpHeaders = this.buildHeaders(headers);
         const relationships: any = this.getRelationships(model);
         const url: string = this.buildUrl(modelType, params, model.id, customUrl);
 
-        let httpCall: Observable<Response>;
+        let httpCall: Observable<HttpResponse<Object>>;
         const body: any = {
             data: {
                 relationships: this.transformRelationshipPropertyNamesToSerializedNames(model),
@@ -119,9 +119,9 @@ export class JsonApiDatastore {
         };
 
         if (model.id) {
-            httpCall = this.http.patch(url, body, options);
+            httpCall = this.http.patch(url, body, {headers: requestHeaders, observe: 'response'});
         } else {
-            httpCall = this.http.post(url, body, options);
+            httpCall = this.http.post(url, body, {headers: requestHeaders, observe: 'response'});
         }
 
         return httpCall
@@ -142,10 +142,10 @@ export class JsonApiDatastore {
                                          id: string,
                                          headers?: Headers,
                                          customUrl?: string): Observable<Response> {
-        const options: RequestOptions = this.getOptions(headers);
+        const requestHeaders: HttpHeaders = this.buildHeaders(headers);
         const url: string = this.buildUrl(modelType, null, id, customUrl);
 
-        return this.http.delete(url, options).catch((res: any) => this.handleError(res));
+        return this.http.delete(url, {headers: requestHeaders}).catch((res: HttpErrorResponse) => this.handleError(res));
     }
 
     peekRecord<T extends JsonApiModel>(modelType: ModelType<T>, id: string): T | null {
@@ -167,6 +167,7 @@ export class JsonApiDatastore {
                                              params?: any,
                                              id?: string,
                                              customUrl?: string): string {
+        // TODO: use HttpParams instead of appending a string to the url
         const queryParams: string = this.toQueryString(params);
 
         if (customUrl) {
@@ -205,15 +206,15 @@ export class JsonApiDatastore {
                         const relationshipData = data[key]
                             .filter((model: JsonApiModel) => model.id)
                             .map((model: JsonApiModel) => this.buildSingleRelationshipData(model));
-    
+
                         relationships[key] = {
                             data: relationshipData
-                        };    
+                        };
                     }
                     if (data[key].length == 0) {
                         relationships[key] = {
                             data: []
-                        }; 
+                        };
                     }
                 }
             }
@@ -221,20 +222,20 @@ export class JsonApiDatastore {
 
         this.relationsToBeDeleted(model).forEach((toDelete) => {
             relationships = relationships || {};
-            relationships[toDelete] = { data: null };
-        });        
+            relationships[toDelete] = {data: null};
+        });
 
         return relationships;
     }
 
-    private relationsToBeDeleted<T extends JsonApiModel>(model: T | {[key: string]: any}) {
-        const belongsToMetadata: [{propertyName: string, relationship: string}] = Reflect.getMetadata('BelongsTo', model);
+    private relationsToBeDeleted<T extends JsonApiModel>(model: T | { [key: string]: any }) {
+        const belongsToMetadata: [{ propertyName: string, relationship: string }] = Reflect.getMetadata('BelongsTo', model);
         if (belongsToMetadata == null) {
             return [];
         }
         return belongsToMetadata.filter((entity) => model.hasOwnProperty(entity.propertyName))
             .filter((entity) => model[entity.propertyName] === null)
-            .map((entity) => entity.propertyName);        
+            .map((entity) => entity.propertyName);
     }
 
     private isValidToManyRelation(objects: Array<any>): boolean {
@@ -258,19 +259,18 @@ export class JsonApiDatastore {
         return relationshipData;
     }
 
-    private extractQueryData<T extends JsonApiModel>(res: any,
+    private extractQueryData<T extends JsonApiModel>(body: any,
                                                      modelType: ModelType<T>,
                                                      withMeta = false): T[] | JsonApiQueryData<T> {
-        const body: any = res.json();
         const models: T[] = [];
-        
+
         body.data.forEach((data: any) => {
             const model: T = this.deserializeModel(modelType, data);
             this.addToStore(model);
 
             if (body.included) {
-              this.transformSerializedNamesInBodyIncludes(body.included);
-              model.syncRelationships(data, body.included, 0);
+                this.transformSerializedNamesInBodyIncludes(body.included);
+                model.syncRelationships(data, body.included, 0);
                 this.addToStore(model);
             }
 
@@ -285,16 +285,16 @@ export class JsonApiDatastore {
     }
 
     private transformSerializedNamesInBodyIncludes(included: any[]) {
-      included.forEach((item:any) => {                
-        var typeName = item.type;
-        if (this.datastoreConfig && typeName) {            
-          const modelTypes : any = this.datastoreConfig.models;
-          var includeModelType: ModelType<JsonApiModel> = modelTypes[typeName];
-          if (includeModelType) {
-              item.attributes = this.transformSerializedNamesToPropertyNames(includeModelType, item.attributes);
-          }                      
-        }         
-      });      
+        included.forEach((item: any) => {
+            var typeName = item.type;
+            if (this.datastoreConfig && typeName) {
+                const modelTypes: any = this.datastoreConfig.models;
+                var includeModelType: ModelType<JsonApiModel> = modelTypes[typeName];
+                if (includeModelType) {
+                    item.attributes = this.transformSerializedNamesToPropertyNames(includeModelType, item.attributes);
+                }
+            }
+        });
     }
 
     private deserializeModel<T extends JsonApiModel>(modelType: ModelType<T>, data: any) {
@@ -302,10 +302,14 @@ export class JsonApiDatastore {
         return new modelType(this, data);
     }
 
-    private extractRecordData<T extends JsonApiModel>(res: Response, modelType: ModelType<T>, model?: T): T {
-        const body: any = res.json();
-
-        if (!body) {
+    protected extractRecordData<T extends JsonApiModel>(res: HttpResponse<Object>,
+                                                        modelType: ModelType<T>,
+                                                        model?: T): T {
+        const body: any = res.body;
+        // Error in Angular < 5.2.4 (see https://github.com/angular/angular/issues/20744)
+        // null is converted to 'null', so this is temporary needed to make testcase possible
+        // (and to avoid a decrease of the coverage)
+        if (!body || body === 'null') {
             throw new Error('no body in response');
         }
 
@@ -331,16 +335,15 @@ export class JsonApiDatastore {
         // tslint:disable-next-line:max-line-length
         const errMsg: string = (error.message) ? error.message : error.status ? `${error.status} - ${error.statusText}` : 'Server error';
 
-        try {
-            const body: any = error.json();
-
-            if (body.errors && body.errors instanceof Array) {
-                const errors: ErrorResponse = new ErrorResponse(body.errors);
-                console.error(errMsg, errors);
-                return Observable.throw(errors);
-            }
-        } catch (e) {
-            // no valid JSON
+        if (
+            error instanceof HttpErrorResponse &&
+            error.error instanceof Object &&
+            error.error.errors &&
+            error.error.errors instanceof Array
+        ) {
+            const errors: ErrorResponse = new ErrorResponse(error.error.errors);
+            console.error(errMsg, errors);
+            return Observable.throw(errors);
         }
 
         console.error(errMsg);
@@ -352,15 +355,25 @@ export class JsonApiDatastore {
         return new metaModel(body);
     }
 
-    private getOptions(customHeaders?: Headers): RequestOptions {
-        const requestHeaders = new Headers();
+    /** @deprecated - use buildHeaders method to build request headers **/
+    protected getOptions(customHeaders?: Headers): any {
+        return {
+            headers: this.buildHeaders(customHeaders),
+        };
+    }
+
+    protected buildHeaders(customHeaders?: Headers): HttpHeaders {
+        const requestHeaders: any = {
+            Accept: 'application/vnd.api+json',
+            'Content-Type': 'application/vnd.api+json'
+        };
 
         requestHeaders.set('Accept', 'application/vnd.api+json');
         requestHeaders.set('Content-Type', 'application/vnd.api+json');
         if (this._headers) {
             this._headers.forEach((values, name) => {
                 if (name !== undefined) {
-                    requestHeaders.set(name, values);
+                    requestHeaders[name] = values;
                 }
             });
         }
@@ -368,12 +381,12 @@ export class JsonApiDatastore {
         if (customHeaders) {
             customHeaders.forEach((values, name) => {
                 if (name !== undefined) {
-                    requestHeaders.set(name, values);
+                    requestHeaders[name] = values;
                 }
             });
         }
 
-        return new RequestOptions({headers: requestHeaders});
+        return new HttpHeaders(requestHeaders);
     }
 
     private _toQueryString(params: any): string {
@@ -445,17 +458,15 @@ export class JsonApiDatastore {
         const properties: any = {};
 
         Object.keys(serializedNameToPropertyName).forEach((serializedName) => {
-          var targetPropertyName = serializedNameToPropertyName[serializedName];
-          if (attributes[serializedName] != null && 
-              attributes[serializedName] != undefined) 
-          {
-              properties[targetPropertyName] = attributes[serializedName];                
-          } else if (attributes[targetPropertyName] != null && 
-                     attributes[targetPropertyName] != undefined)
-          {                
-              // has already been serialized
-              properties[targetPropertyName] = attributes[targetPropertyName];
-          }
+            var targetPropertyName = serializedNameToPropertyName[serializedName];
+            if (attributes[serializedName] != null &&
+                attributes[serializedName] != undefined) {
+                properties[targetPropertyName] = attributes[serializedName];
+            } else if (attributes[targetPropertyName] != null &&
+                attributes[targetPropertyName] != undefined) {
+                // has already been serialized
+                properties[targetPropertyName] = attributes[targetPropertyName];
+            }
         });
 
         return properties;
@@ -471,7 +482,7 @@ export class JsonApiDatastore {
         annotations = annotations.concat(Reflect.getMetadata('HasOne', model) || []);
         annotations = annotations.concat(Reflect.getMetadata('BelongsTo', model) || []);
 
-        annotations.forEach((element : any) => {            
+        annotations.forEach((element: any) => {
             relationshipNames[element['propertyName']] = element['relationship']
         });
         let name = null;
@@ -479,11 +490,12 @@ export class JsonApiDatastore {
             Object.keys(relationships).forEach(key => {
                 if (name = relationshipNames[key]) {
                     transformedRelationships[name] = relationships[key];
-                }            
-            });    
+                }
+            });
         }
-        return transformedRelationships;        
+        return transformedRelationships;
     }
+
     private getModelPropertyNames(model: JsonApiModel) {
         return Reflect.getMetadata('AttributeMapping', model);
     }
