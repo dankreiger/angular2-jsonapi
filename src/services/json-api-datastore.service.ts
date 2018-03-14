@@ -364,12 +364,10 @@ export class JsonApiDatastore {
 
     protected buildHeaders(customHeaders?: Headers): HttpHeaders {
         const requestHeaders: any = {
-            Accept: 'application/vnd.api+json',
+            'Accept': 'application/vnd.api+json',
             'Content-Type': 'application/vnd.api+json'
         };
 
-        requestHeaders.set('Accept', 'application/vnd.api+json');
-        requestHeaders.set('Content-Type', 'application/vnd.api+json');
         if (this._headers) {
             this._headers.forEach((values, name) => {
                 if (name !== undefined) {
