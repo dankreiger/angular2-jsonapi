@@ -199,9 +199,9 @@ export class JsonApiDatastore {
                             data: this.buildSingleRelationshipData(data[key])
                         };
                     }
-                } else if (data[key] instanceof Array) {
-                    if (data[key].length > 0 && this.isValidToManyRelation(data[key])) {
-                        relationships = relationships || {};
+                } else if (data[key] instanceof Array && this.isValidToManyRelation(data[key])) {
+                    relationships = relationships || {};
+                    if (data[key].length > 0) {
 
                         const relationshipData = data[key]
                             .filter((model: JsonApiModel) => model.id)
@@ -210,8 +210,7 @@ export class JsonApiDatastore {
                         relationships[key] = {
                             data: relationshipData
                         };
-                    }
-                    if (data[key].length == 0) {
+                    } else {
                         relationships[key] = {
                             data: []
                         };
@@ -239,7 +238,10 @@ export class JsonApiDatastore {
     }
 
     private isValidToManyRelation(objects: Array<any>): boolean {
-        const isJsonApiModel = objects.every((item) => item instanceof JsonApiModel);
+        // TODO: check if this fails wrongly when valid relationship but empty
+        // added because engine variation specs was empty array but no relationship 
+        // and objects.every() returns always true on empty arrays which then lead to errors
+        const isJsonApiModel = objects.length && objects.every((item) => item instanceof JsonApiModel);
         const relationshipType: string = isJsonApiModel ? objects[0].modelConfig.type : '';
 
         return isJsonApiModel ? objects.every((item: JsonApiModel) => item.modelConfig.type === relationshipType) : false;
