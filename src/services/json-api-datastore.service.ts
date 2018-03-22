@@ -239,7 +239,7 @@ export class JsonApiDatastore {
 
     private isValidToManyRelation(objects: Array<any>): boolean {
         // TODO: check if this fails wrongly when valid relationship but empty
-        // added because engine variation specs was empty array but no relationship 
+        // added because engine variation specs was empty array but no relationship
         // and objects.every() returns always true on empty arrays which then lead to errors
         const isJsonApiModel = objects.length && objects.every((item) => item instanceof JsonApiModel);
         const relationshipType: string = isJsonApiModel ? objects[0].modelConfig.type : '';
@@ -404,6 +404,20 @@ export class JsonApiDatastore {
 
         for (const model of models) {
             typeStore[model.id] = model;
+        }
+    }
+
+    public removeFromStore(modelOrModels: JsonApiModel | JsonApiModel[]): void {
+        const models = Array.isArray(modelOrModels) ? modelOrModels : [modelOrModels];
+        const type: string = models[0].modelConfig.type;
+        let typeStore = this._store[type];
+
+        if (!typeStore) {
+            return;
+        }
+
+        for (const model of models) {
+            delete typeStore[model.id];
         }
     }
 
