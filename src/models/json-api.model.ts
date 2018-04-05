@@ -164,9 +164,8 @@ export class JsonApiModel {
                                 typeName,
                                 level
                             );
-
                             if (relationshipModel) {
-                                this[metadata.propertyName] = relationshipModel;
+                                this[metadata.propertyName] = (relationship.data instanceof Array) ? [relationshipModel] : relationshipModel;
                             }
                         } else {
                             throw {message: 'parseBelongsTo - Model type for relationship ' + typeName + ' not found.'};
